@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="DSX Game Helper v1.0.1a - @raritytiks" Height="650" Width="800">
+        Title="DSX Game Helper Extended" Height="650" Width="800">
 
     <Grid Margin="10">
         <Grid.RowDefinitions>

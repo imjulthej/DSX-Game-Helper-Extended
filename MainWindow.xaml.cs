@@ -12,7 +12,7 @@ using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
-namespace DSXGameHelperv1
+namespace DSXGameHelperExtended
 {
     public partial class MainWindow : Window
     {
@@ -40,7 +40,7 @@ namespace DSXGameHelperv1
 
             taskbarIcon = new TaskbarIcon();
             taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/controller.ico")); // Replace with your own icon path
-            taskbarIcon.ToolTipText = "DSX Game Helper";
+            taskbarIcon.ToolTipText = "DSX Game Helper Extended";
             taskbarIcon.TrayMouseDoubleClick += TaskbarIcon_DoubleClick;
 
             ContextMenu contextMenu = new ContextMenu();

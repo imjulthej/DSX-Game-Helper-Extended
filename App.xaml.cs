@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace DSXGameHelperv1
+namespace DSXGameHelperExtended
 {
     /// <summary>
     /// Interaction logic for App.xaml
