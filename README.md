@@ -6,10 +6,10 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 * The ability to autodetect games from a specified folder
 * A dedicated settings page for the following features:
 
-  1. Pointing the program to DSX
-  2. Options for starting the program on bootup and starting in tray
-  3. Optional notifications for when DSX launches and closes, if an error occurs, or if a new update is available
-  4. Toggling dark mode
+  - Pointing the program to DSX
+  - Options for starting the program on bootup and starting in tray
+  - Optional notifications for when DSX launches and closes, if an error occurs, or if a new update is available
+  - Toggling dark mode
     
 * Dynamic tray icon improvements
 * The ability to drag and drop exes to add them
