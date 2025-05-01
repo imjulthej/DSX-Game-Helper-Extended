@@ -1,6 +1,6 @@
 # DSX Game Helper Extended (DSX GHE)
 
-A program that launches and kills [DSX](https://store.steampowered.com/app/1812620/DSX/) when running specified games so you don't have to open it manually every time. The original DSX Game Helper was created by [@raritytiks](https://github.com/raritytiks), I forked from their repository and expanded upon it with some additional features, so please support them!
+A program that launches and kills [DSX](https://store.steampowered.com/app/1812620/DSX/) when running specified games so you don't have to open it manually every time. The original DSX Game Helper was created by [@raritytiks](https://github.com/raritytiks). I forked from their repository and expanded upon it with some additional features, so please support them!
 
 ## Additions to OG Program
 * The ability to autodetect games from a specified folder
@@ -14,6 +14,10 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 * Dynamic tray icon improvements
 * The ability to drag and drop exes to add them
 * The ability to open games directly from DSX GHE
+* The ability to edit Game Name
+* EXE icons next to Game Name
+* Select programs before deleting, with select all option available
+* Scrolling through lists
 
 ## Getting Started
 ### Prerequisites
