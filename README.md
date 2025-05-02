@@ -17,13 +17,14 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 * EXE icons next to Game Name
 * Select programs before deleting, with select all option available
 * Scrolling through lists
+* Updated to .NET 8
 
 ## Getting Started
 ### Prerequisites
 
 - Windows 10/11
 - Any version of DSX
-- [.NET 7 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-7.0.14-windows-x64-installer)
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.408-windows-x64-installer)
 
 ### Installation
 

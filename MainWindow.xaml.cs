@@ -36,7 +36,14 @@ namespace DSXGameHelperExtended
 
         public string dsxExecutablePath { get; private set; }
         private TaskbarIcon taskbarIcon;
+        private readonly Uri iconIdle = new("pack://application:,,,/Assets/icon_idle.ico");
+        private readonly Uri iconRunning = new("pack://application:,,,/Assets/icon_running.ico");
+        private readonly Uri iconError = new("pack://application:,,,/Assets/icon_error.ico");
 
+        private void SetTrayIcon(Uri iconUri)
+        {
+            taskbarIcon.IconSource = new BitmapImage(iconUri);
+        }
 
         public MainWindow()
         {
@@ -59,6 +66,7 @@ namespace DSXGameHelperExtended
             UpdateStatus("Ready. No game running.");
 
             taskbarIcon = new TaskbarIcon();
+            SetTrayIcon(iconIdle);
             taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/controller.ico"));
             taskbarIcon.ToolTipText = "DSX Game Helper Extended";
             taskbarIcon.TrayMouseDoubleClick += TaskbarIcon_DoubleClick;
@@ -306,12 +314,14 @@ namespace DSXGameHelperExtended
         {
             if (string.IsNullOrWhiteSpace(appSettings.DSXExecutablePath))
             {
+                SetTrayIcon(iconError);
                 UpdateStatus("Game running but no DSX path selected.");
                 return;
             }
 
             if (!File.Exists(appSettings.DSXExecutablePath))
             {
+                SetTrayIcon(iconError);
                 UpdateStatus("Invalid DSX Path.");
                 return;
             }
@@ -325,6 +335,7 @@ namespace DSXGameHelperExtended
                 Process.Start("explorer", "steam://rungameid/1812620");
             }
             UpdateStatus("DSX started with game.");
+            SetTrayIcon(iconRunning);
         }
 
         private void EnsureDSXIsNotRunning()
@@ -356,6 +367,7 @@ namespace DSXGameHelperExtended
                     UpdateStatus($"Error getting processes for {processName}: {ex.Message}");
                 }
             }
+            SetTrayIcon(iconIdle);
         }
 
         private bool IsProcessRunning(string processName)

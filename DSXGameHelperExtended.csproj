@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <SignAssembly>True</SignAssembly>
@@ -11,6 +11,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
 	<AssemblyVersion>1.0.0.0</AssemblyVersion>
 	<FileVersion>1.0.0.0</FileVersion>
+	  <UseWPF>true</UseWPF>
+	  <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -22,6 +24,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\icon_error.ico" />
+    <None Remove="Assets\icon_running.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\icon_error.ico" />
+    <Resource Include="Assets\icon_idle.ico" />
+    <Resource Include="Assets\icon_running.ico" />
     <Resource Include="controller.ico" />
   </ItemGroup>
 
