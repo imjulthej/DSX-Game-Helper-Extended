@@ -1,0 +1,32 @@
+﻿<Window x:Class="DSXGameHelperExtended.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="300" Width="420" WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="10">
+        <TabControl>
+            <TabItem Header="General">
+                <StackPanel Margin="10" VerticalAlignment="Top">
+                    <CheckBox x:Name="chkStartWithWindows" Content="Start on Windows startup" Margin="0,5"/>
+                    <CheckBox x:Name="chkStartMinimized" Content="Start minimized to tray" Margin="0,5"/>
+                    <CheckBox x:Name="chkDoubleClickLaunch" Content="Enable double-click to launch games" Margin="0,5"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,15">
+                        <TextBlock VerticalAlignment="Center" Text="DSX Path:" Margin="0,0,10,0"/>
+                        <TextBox x:Name="txtDSXPath" Width="220" IsReadOnly="True"/>
+                        <Button Content="Browse..." Margin="5,0,0,0" Click="BrowseDSXPath_Click"/>
+                    </StackPanel>
+                    <Button Content="Check for Updates Now" Width="140" Margin="0,15,0,0" Click="CheckForUpdates_Click"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Notifications">
+                <StackPanel Margin="10" VerticalAlignment="Top">
+                    <CheckBox x:Name="chkNotifyStart" Content="Notify when DSX starts" Margin="0,5"/>
+                    <CheckBox x:Name="chkNotifyStop" Content="Notify when DSX stops" Margin="0,5"/>
+                    <CheckBox x:Name="chkNotifyError" Content="Notify on errors" Margin="0,5"/>
+                    <CheckBox x:Name="chkNotifyUpdate" Content="Notify when updates are available" Margin="0,5"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

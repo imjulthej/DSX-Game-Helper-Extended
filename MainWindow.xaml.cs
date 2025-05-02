@@ -16,6 +16,8 @@ using System.ComponentModel;
 using System.Windows.Media;
 using System.Text.Json.Serialization;
 using System.Windows.Input;
+using System.Threading.Tasks;
+using System.Windows.Media.Animation;
 
 namespace DSXGameHelperExtended
 {
@@ -40,6 +42,11 @@ namespace DSXGameHelperExtended
         {
             InitializeComponent();
             appSettings = LoadSettings();
+            if (appSettings.StartMinimized)
+            {
+                WindowState = WindowState.Minimized;
+                Hide();
+            }
             gamePaths = new ObservableCollection<GameInfo>(appSettings.GamePaths);
             lvGames.ItemsSource = gamePaths;
             foreach (var game in gamePaths)
@@ -51,9 +58,8 @@ namespace DSXGameHelperExtended
             InitializeTimer();
             UpdateStatus("Ready. No game running.");
 
-
             taskbarIcon = new TaskbarIcon();
-            taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/controller.ico")); // Replace with your own icon path
+            taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/controller.ico"));
             taskbarIcon.ToolTipText = "DSX Game Helper Extended";
             taskbarIcon.TrayMouseDoubleClick += TaskbarIcon_DoubleClick;
 
@@ -66,6 +72,18 @@ namespace DSXGameHelperExtended
             contextMenu.Items.Add(exitMenuItem);
 
             taskbarIcon.ContextMenu = contextMenu;
+            taskbarIcon.TrayBalloonTipClicked += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(pendingNotificationUrl))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = pendingNotificationUrl,
+                        UseShellExecute = true
+                    });
+                    pendingNotificationUrl = null;
+                }
+            };
 
         }
 
@@ -95,10 +113,14 @@ namespace DSXGameHelperExtended
 
         private void InitializeTimer()
         {
-            checkInterval = appSettings.CheckInterval * 1000; // Convert to milliseconds
+            checkInterval = appSettings.CheckInterval * 1000;
             processCheckTimer = new Timer(CheckRunningGames, null, 0, checkInterval);
         }
-
+        public void ShowNotification(string title, string message)
+        {
+            if (taskbarIcon == null) return;
+            taskbarIcon.ShowBalloonTip(title, message, BalloonIcon.Info);
+        }
         private Settings LoadSettings()
         {
             try
@@ -130,7 +152,7 @@ namespace DSXGameHelperExtended
             return new Settings();
         }
 
-        private void SaveSettings()
+        public void SaveSettings()
         {
             try
             {
@@ -194,6 +216,7 @@ namespace DSXGameHelperExtended
                 gamePaths.Remove(selectedGame);
                 SaveSettings();
                 UpdateStatus($"Game removed: {selectedGame.GameName}");
+                UpdateSelectedCountStatus();
             }
             else
             {
@@ -222,6 +245,7 @@ namespace DSXGameHelperExtended
                 UpdateStatus($"{selectedGames.Count} game(s) removed.");
 
                 chkSelectAll.IsChecked = false;
+                UpdateSelectedCountStatus();
             }
         }
 
@@ -342,6 +366,16 @@ namespace DSXGameHelperExtended
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             processCheckTimer.Change(0, checkInterval);
+
+            if (!appSettings.HasPromptedForDSXPath &&
+                (string.IsNullOrWhiteSpace(appSettings.DSXExecutablePath) || !File.Exists(appSettings.DSXExecutablePath)))
+            {
+                PromptForDSXPath();
+            }
+            if (appSettings.NotifyOnUpdate)
+            {
+                _ = CheckForUpdatesAsync();
+            }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -394,6 +428,7 @@ namespace DSXGameHelperExtended
                 UpdateStatus($"Scan complete. {addedCount} game(s) added.");
             }
         }
+        private string pendingNotificationUrl = null;
 
         private string[] ShowExeSelectionDialog(string[] exePaths)
         {
@@ -492,6 +527,318 @@ namespace DSXGameHelperExtended
                 game.GameName = dialog.EditedName;
             }
         }
+
+        private void PromptForDSXPath()
+        {
+            appSettings.HasPromptedForDSXPath = true;
+            SaveSettings();
+
+            var prompt = new DSXPathPromptWindow { Owner = this };
+            bool? result = prompt.ShowDialog();
+
+            switch (prompt.Result)
+            {
+                case DSXPathPromptWindow.DSXPromptResult.Auto:
+                    string foundPath = SearchForDSXExecutable();
+                    if (!string.IsNullOrEmpty(foundPath))
+                    {
+                        appSettings.DSXExecutablePath = foundPath;
+                        SaveSettings();
+                        MessageBox.Show("DSX found and path set!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Could not find DSX automatically.", "Search Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    break;
+
+                case DSXPathPromptWindow.DSXPromptResult.Manual:
+                    var dialog = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Filter = "Executable files (*.exe)|*.exe",
+                        Title = "Select DualSenseX Executable"
+                    };
+
+                    if (dialog.ShowDialog() == true)
+                    {
+                        appSettings.DSXExecutablePath = dialog.FileName;
+                        SaveSettings();
+                        MessageBox.Show("DSX path set manually!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    break;
+
+                case DSXPathPromptWindow.DSXPromptResult.Cancel:
+                default:
+                    break;
+            }
+        }
+
+        private string SearchForDSXExecutable()
+        {
+            string[] commonDirs =
+            {
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steam", "steamapps", "common"),
+    };
+
+            foreach (string dir in commonDirs)
+            {
+                try
+                {
+                    var exePaths = Directory.GetFiles(dir, "DSX.exe", SearchOption.AllDirectories);
+                    if (exePaths.Length > 0)
+                        return exePaths[0];
+                }
+                catch { }
+            }
+
+            return null;
+        }
+        public string SelectDSXPathManually()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Executable files (*.exe)|*.exe",
+                Title = "Select DualSenseX Executable"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                appSettings.DSXExecutablePath = dialog.FileName;
+                SaveSettings();
+                return dialog.FileName;
+            }
+
+            return null;
+        }
+
+        public async Task CheckForUpdatesAsync()
+        {
+            const string repo = "imjulthej/DSX-Game-Helper-Extended";
+            const string releasesUrl = $"https://api.github.com/repos/{repo}/releases/latest";
+
+            using var client = new System.Net.Http.HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DSXGameHelperExtended");
+
+            try
+            {
+                var response = await client.GetStringAsync(releasesUrl);
+                using var doc = System.Text.Json.JsonDocument.Parse(response);
+                string latestVersion = doc.RootElement.GetProperty("tag_name").GetString();
+                string currentVersion = VersionHelper.GetAppVersion();
+
+                if (IsNewerVersion(latestVersion, currentVersion) && latestVersion != appSettings.LastNotifiedVersion)
+                {
+                    appSettings.LastNotifiedVersion = latestVersion;
+                    SaveSettings();
+
+                    if (appSettings.NotifyOnUpdate)
+                    {
+                        pendingNotificationUrl = $"https://github.com/{repo}/releases/latest";
+                        ShowNotification("Update Available", $"New version {latestVersion} is available. Click to download.");
+                    }
+                    else
+                    {
+                        var result = MessageBox.Show(
+                            $"Version {latestVersion} is available. Do you want to open the download page?",
+                            "Update Available",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Information
+                        );
+
+                        if (result == MessageBoxResult.Yes)
+                        {
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = $"https://github.com/{repo}/releases/latest",
+                                UseShellExecute = true
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("You are already using the latest version.", "No Update Found", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (System.Net.Http.HttpRequestException httpEx) when (httpEx.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                if (appSettings.NotifyOnError)
+                {
+                    ShowNotification("No Releases Found", "No GitHub release was found for this project.");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (appSettings.NotifyOnError)
+                {
+                    ShowNotification("Update Check Failed", ex.Message);
+                }
+            }
+        }
+        private bool IsNewerVersion(string latest, string current)
+        {
+            Version latestV = new Version(latest.TrimStart('v'));
+            Version currentV = new Version(current);
+            return latestV > currentV;
+        }
+
+        private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var settingsWindow = new SettingsWindow(appSettings) { Owner = this };
+            settingsWindow.ShowDialog();
+        }
+        private void btnSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var settingsWindow = new SettingsWindow(appSettings)
+            {
+                Owner = this
+            };
+            settingsWindow.ShowDialog();
+        }
+        private void lvGames_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (!appSettings.EnableDoubleClickLaunch)
+                return;
+
+            if (lvGames.SelectedItem is GameInfo selectedGame && File.Exists(selectedGame.GamePath))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = selectedGame.GamePath,
+                        UseShellExecute = true
+                    });
+
+                    UpdateStatus($"Launched: {selectedGame.GameName}");
+
+                    if (appSettings.NotifyOnStart)
+                    {
+                        ShowNotification("Game Launched", $"{selectedGame.GameName} has been launched.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatus($"Failed to launch: {ex.Message}");
+                    if (appSettings.NotifyOnError)
+                    {
+                        ShowNotification("Launch Failed", ex.Message);
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("The game's executable could not be found.", "Launch Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        private void Window_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                bool hasExe = files.Any(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+
+                if (hasExe)
+                {
+                    e.Effects = DragDropEffects.Copy;
+
+                    if (dropOverlay.Visibility != Visibility.Visible)
+                    {
+                        dropOverlay.Opacity = 0;
+                        dropOverlay.Visibility = Visibility.Visible;
+
+                        var fadeIn = (Storyboard)FindResource("FadeInOverlay");
+                        fadeIn.Begin();
+                    }
+
+                    return;
+                }
+            }
+
+            if (dropOverlay.Visibility == Visibility.Visible)
+            {
+                var fadeOut = (Storyboard)FindResource("FadeOutOverlay");
+                fadeOut.Completed += (s, _) =>
+                {
+                    dropOverlay.Visibility = Visibility.Collapsed;
+                    dropOverlay.Opacity = 0;
+                };
+                fadeOut.Begin();
+            }
+        }
+
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] droppedFiles)
+            {
+                var exeFiles = droppedFiles
+                    .Where(path => path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+                if (exeFiles.Length == 0)
+                {
+                    MessageBox.Show("Only .exe files are supported.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                int addedCount = 0;
+                foreach (var path in exeFiles)
+                {
+                    string name = Path.GetFileNameWithoutExtension(path);
+
+                    if (!gamePaths.Any(g => g.GameName.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var gameInfo = new GameInfo
+                        {
+                            GamePath = path,
+                            GameName = name,
+                            IconSource = GetIconFromExePath(path)
+                        };
+
+                        gameInfo.PropertyChanged += GameInfo_PropertyChanged;
+                        gamePaths.Add(gameInfo);
+                        addedCount++;
+                    }
+                }
+
+                if (addedCount > 0)
+                {
+                    SaveSettings();
+                    UpdateStatus($"Added {addedCount} game(s) from drag-and-drop.");
+                }
+                else
+                {
+                    UpdateStatus("No new games were added.");
+                }
+            }
+            dropOverlay.Visibility = Visibility.Collapsed;
+            var fadeOut = (Storyboard)FindResource("FadeOutOverlay");
+            fadeOut.Completed += (s, _) =>
+            {
+                dropOverlay.Visibility = Visibility.Collapsed;
+                dropOverlay.Opacity = 0;
+            };
+            fadeOut.Begin();
+        }
+        private void Window_PreviewDragLeave(object sender, DragEventArgs e)
+        {
+            if (dropOverlay.Visibility == Visibility.Visible)
+            {
+                var fadeOut = (Storyboard)FindResource("FadeOutOverlay");
+                fadeOut.Completed += (s, _) =>
+                {
+                    dropOverlay.Visibility = Visibility.Collapsed;
+                    dropOverlay.Opacity = 0;
+                };
+                fadeOut.Begin();
+            }
+        }
     }
 
     public class GameInfo : INotifyPropertyChanged
@@ -575,12 +922,54 @@ namespace DSXGameHelperExtended
         {
             DSXVersionIndex = 0; // Default to DSX v1 (FREE)
             CheckInterval = 1;  // Default to 1 second
-
+            HasPromptedForDSXPath = false;
+            EnableDoubleClickLaunch = false;
         }
         public string LastUsedDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         public List<GameInfo> GamePaths { get; set; } = new List<GameInfo>();
         public string DSXExecutablePath { get; set; }
         public int DSXVersionIndex { get; set; }
         public int CheckInterval { get; set; } = 1; // Default to 5 seconds
+        public bool HasPromptedForDSXPath { get; set; } = false;
+        public bool StartMinimized { get; set; } = false;
+        public bool StartWithWindows { get; set; } = false;
+        public bool NotifyOnStart { get; set; } = true;
+        public bool NotifyOnStop { get; set; } = true;
+        public bool NotifyOnError { get; set; } = true;
+        public bool NotifyOnUpdate { get; set; } = true;
+        public string LastNotifiedVersion { get; set; } = "";
+        public bool EnableDoubleClickLaunch { get; set; } = true;
+    }
+
+    public static class StartupHelper
+    {
+        private const string AppName = "DSXGameHelperExtended";
+
+        public static void SetStartup(bool enable)
+        {
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+            {
+                if (enable)
+                    key.SetValue(AppName, $"\"{System.Reflection.Assembly.GetExecutingAssembly().Location}\"");
+                else
+                    key.DeleteValue(AppName, false);
+            }
+        }
+
+        public static bool IsStartupEnabled()
+        {
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
+            {
+                return key?.GetValue(AppName) != null;
+            }
+        }
+    }
+}
+
+public static class VersionHelper
+{
+    public static string GetAppVersion()
+    {
+        return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
     }
 }
