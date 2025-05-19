@@ -1,23 +1,24 @@
-﻿using Microsoft.Win32;
+﻿using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Windows;
-using Hardcodet.Wpf.TaskbarNotification;
-using System.Windows.Controls;
-using System.Windows.Media.Imaging;
-using System.Windows.Media;
-using System.ComponentModel;
-using System.Windows.Media;
 using System.Text.Json.Serialization;
-using System.Windows.Input;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace DSXGameHelperExtended
 {
@@ -56,6 +57,7 @@ namespace DSXGameHelperExtended
             }
             gamePaths = new ObservableCollection<GameInfo>(appSettings.GamePaths);
             lvGames.ItemsSource = gamePaths;
+            InitializeCollectionView();
             foreach (var game in gamePaths)
             {
                 game.PropertyChanged += GameInfo_PropertyChanged;
@@ -872,6 +874,69 @@ namespace DSXGameHelperExtended
                 };
                 fadeOut.Begin();
             }
+        }
+
+        private bool isAscending = true;
+        private ICollectionView gamePathsView;
+        private string currentSearchText = "";
+
+        private void InitializeCollectionView()
+        {
+            if (lvGames.ItemsSource != null)
+            {
+                gamePathsView = CollectionViewSource.GetDefaultView(lvGames.ItemsSource);
+                gamePathsView.Filter = GameFilter;
+            }
+        }
+
+        private bool GameFilter(object item)
+        {
+            if (string.IsNullOrEmpty(currentSearchText))
+                return true;
+
+            return item is GameInfo game &&
+                   game.GameName.Contains(currentSearchText, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            currentSearchText = txtSearch.Text;
+            if (gamePathsView == null)
+            {
+                InitializeCollectionView();
+            }
+            gamePathsView?.Refresh();
+        }
+
+        private void GameName_HeaderClick(object sender, RoutedEventArgs e)
+        {
+            isAscending = !isAscending;
+
+            ICollectionView view = CollectionViewSource.GetDefaultView(lvGames.ItemsSource);
+            view.SortDescriptions.Clear();
+
+            view.SortDescriptions.Add(new SortDescription("GameName",
+                isAscending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+        }
+    }
+    public class RelayCommand : ICommand
+    {
+        private readonly Action _execute;
+        public RelayCommand(Action execute)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        }
+        public event EventHandler CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+
+        public bool CanExecute(object parameter) => true;
+
+        public void Execute(object parameter)
+        {
+            _execute();
         }
     }
 

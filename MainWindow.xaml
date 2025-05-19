@@ -29,6 +29,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
@@ -37,7 +38,6 @@
             <Button x:Name="btnScanFolder" Content="Scan Folder" Width="100" Margin="10,0,0,0" Click="btnScanFolder_Click"/>
             <CheckBox x:Name="chkSelectAll" Content="Select All" Margin="10,0,0,0" Checked="chkSelectAll_Checked" Unchecked="chkSelectAll_Unchecked" VerticalAlignment="Center"/>
             <Button x:Name="btnSettings" Content="Settings" Width="100" Click="btnSettings_Click" Margin="250,0,0,0"/>
-
         </StackPanel>
 
         <ListView x:Name="lvGames" Grid.Row="1" SelectionMode="Extended" MouseRightButtonUp="lvGames_MouseRightButtonUp" MouseDoubleClick="lvGames_MouseDoubleClick" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto">
@@ -57,13 +57,22 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn Header="Game Name" Width="200" DisplayMemberBinding="{Binding GameName}" />
+                    <GridViewColumn DisplayMemberBinding="{Binding GameName}" Width="200">
+                        <GridViewColumn.Header>
+                            <GridViewColumnHeader Content="Game Name" Click="GameName_HeaderClick"/>
+                        </GridViewColumn.Header>
+                    </GridViewColumn>
                     <GridViewColumn Header="Path" Width="500" DisplayMemberBinding="{Binding GamePath}" />
                 </GridView>
             </ListView.View>
         </ListView>
+        
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,5,0,5" Grid.Row="2">
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox x:Name="txtSearch" TextChanged="txtSearch_TextChanged" />
+        </DockPanel>
 
-        <StatusBar Grid.Row="2">
+        <StatusBar Grid.Row="3">
             <StatusBarItem>
                 <TextBlock x:Name="txtStatusLeft" />
             </StatusBarItem>
