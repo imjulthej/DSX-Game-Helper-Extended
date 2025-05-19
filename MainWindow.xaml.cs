@@ -284,21 +284,50 @@ namespace DSXGameHelperExtended
 
         private void CheckRunningGames(object state)
         {
-            var runningProcessNames = Process.GetProcesses().Select(p => p.ProcessName).ToList();
-            bool anyGameRunning = gamePaths.Any(gameInfo => runningProcessNames.Contains(gameInfo.GameName));
-
-            Dispatcher.Invoke(() =>
+            try
             {
-                if (anyGameRunning)
+                var runningProcesses = Process.GetProcesses();
+                var runningProcessNames = runningProcesses.Select(p => p.ProcessName.ToLower()).ToList();
+
+                bool anyGameRunning = false;
+                string runningGameName = null;
+
+                foreach (var gameInfo in gamePaths)
                 {
-                    EnsureDSXIsRunning();
+                    string gameProcessName = Path.GetFileNameWithoutExtension(gameInfo.GamePath).ToLower();
+
+                    if (runningProcessNames.Contains(gameProcessName))
+                    {
+                        anyGameRunning = true;
+                        runningGameName = gameInfo.GameName;
+                        break;
+                    }
                 }
-                else
+
+                Dispatcher.Invoke(() =>
                 {
-                    EnsureDSXIsNotRunning();
-                    UpdateStatus("No game running.", isLeft: true);
-                }
-            });
+                    if (anyGameRunning)
+                    {
+                        SetTrayIcon(iconRunning);
+                        UpdateStatus($"Game detected: {runningGameName}", isLeft: true);
+                        EnsureDSXIsRunning();
+                    }
+                    else
+                    {
+                        EnsureDSXIsNotRunning();
+                        SetTrayIcon(iconIdle);
+                        UpdateStatus("No game running.", isLeft: true);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    UpdateStatus($"Error checking games: {ex.Message}", isLeft: true);
+                    SetTrayIcon(iconError);
+                });
+            }
         }
 
         private void EnsureDSXIsRunning()
@@ -326,14 +355,7 @@ namespace DSXGameHelperExtended
                 return;
             }
 
-            if (appSettings.DSXVersionIndex == 0) // DSX v1 (FREE)
-            {
-                Process.Start(appSettings.DSXExecutablePath);
-            }
-            else // DSX v2/v3 (STEAM)
-            {
-                Process.Start("explorer", "steam://rungameid/1812620");
-            }
+            Process.Start(appSettings.DSXExecutablePath);
             UpdateStatus("DSX started with game.");
             SetTrayIcon(iconRunning);
         }
@@ -932,7 +954,6 @@ namespace DSXGameHelperExtended
     {
         public Settings()
         {
-            DSXVersionIndex = 0; // Default to DSX v1 (FREE)
             CheckInterval = 1;  // Default to 1 second
             HasPromptedForDSXPath = false;
             EnableDoubleClickLaunch = false;
@@ -940,7 +961,6 @@ namespace DSXGameHelperExtended
         public string LastUsedDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         public List<GameInfo> GamePaths { get; set; } = new List<GameInfo>();
         public string DSXExecutablePath { get; set; }
-        public int DSXVersionIndex { get; set; }
         public int CheckInterval { get; set; } = 1; // Default to 5 seconds
         public bool HasPromptedForDSXPath { get; set; } = false;
         public bool StartMinimized { get; set; } = false;
