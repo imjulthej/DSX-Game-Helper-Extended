@@ -12,7 +12,7 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
     
 * Dynamic tray icon improvements
 * The ability to drag and drop exes to add them
-* Option to open games directly from DSX GHE (default off)
+* Option to open games directly from DSX GHE (default off in the settings page)
 * The ability to edit Game Name
 * EXE icons next to Game Name, with the ability to change them
 * Select programs before deleting, with select all option available
