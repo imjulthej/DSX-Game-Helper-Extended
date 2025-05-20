@@ -14,7 +14,7 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 * The ability to drag and drop exes to add them
 * Option to open games directly from DSX GHE (default off)
 * The ability to edit Game Name
-* EXE icons next to Game Name
+* EXE icons next to Game Name, with the ability to change them
 * Select programs before deleting, with select all option available
 * Scrolling, search, and sorting through lists
 * Updated to .NET 8
@@ -33,4 +33,6 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 
 ---
 
-**NOTE:** Do not run DSX GHE as an administrator or the drag and drop function will not work.
+**NOTES:** 
+* Do not run DSX GHE as an administrator or the drag and drop function will not work.
+* To add Microsoft Store games to DSX GHE, you must either go to their EXE in File Explorer and drag and drop it or scan their directory folder, as traditional adding does not work due to administrator protections on Microsoft Store game EXEs.

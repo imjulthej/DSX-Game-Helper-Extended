@@ -55,6 +55,14 @@ namespace DSXGameHelperExtended
                 WindowState = WindowState.Minimized;
                 Hide();
             }
+            if (appSettings.GamePaths != null)
+            {
+                foreach (var game in appSettings.GamePaths)
+                {
+                    LoadGameIcon(game);
+                }
+                lvGames.ItemsSource = appSettings.GamePaths;
+            }
             gamePaths = new ObservableCollection<GameInfo>(appSettings.GamePaths);
             lvGames.ItemsSource = gamePaths;
             InitializeCollectionView();
@@ -537,15 +545,32 @@ namespace DSXGameHelperExtended
         {
             SaveSettings();
         }
-
         private void lvGames_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (lvGames.SelectedItem is GameInfo selectedGame)
             {
                 ContextMenu contextMenu = new ContextMenu();
+
                 MenuItem editItem = new MenuItem { Header = "Edit Game Name" };
                 editItem.Click += (s, args) => OpenEditNameDialog(selectedGame);
+
+                MenuItem changeIconItem = new MenuItem
+                {
+                    Header = "Change Icon",
+                    DataContext = selectedGame  // Add this line
+                };
+                changeIconItem.Click += ChangeIcon_Click;
+
+                MenuItem resetIconItem = new MenuItem
+                {
+                    Header = "Reset Icon",
+                    DataContext = selectedGame  // Add this line
+                };
+                resetIconItem.Click += ResetIcon_Click;
+
                 contextMenu.Items.Add(editItem);
+                contextMenu.Items.Add(changeIconItem);
+                contextMenu.Items.Add(resetIconItem);
 
                 contextMenu.IsOpen = true;
             }
@@ -918,6 +943,75 @@ namespace DSXGameHelperExtended
             view.SortDescriptions.Add(new SortDescription("GameName",
                 isAscending ? ListSortDirection.Ascending : ListSortDirection.Descending));
         }
+        private ImageSource LoadImageFromFile(string filePath)
+        {
+            try
+            {
+                BitmapImage image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.UriSource = new Uri(filePath);
+                image.EndInit();
+                return image;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+        private void ChangeIcon_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is GameInfo gameInfo)
+            {
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Image files (*.ico;*.png;*.jpg)|*.ico;*.png;*.jpg|All files (*.*)|*.*",
+                    Title = "Select new icon"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    var newIcon = LoadImageFromFile(dialog.FileName);
+                    if (newIcon != null)
+                    {
+                        gameInfo.CustomIconPath = dialog.FileName;
+                        gameInfo.IconSource = newIcon;
+                        SaveSettings();
+                        UpdateStatus($"Icon changed for {gameInfo.GameName}");
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to load the selected image.", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+        private void LoadGameIcon(GameInfo gameInfo)
+        {
+            if (!string.IsNullOrEmpty(gameInfo.CustomIconPath) && File.Exists(gameInfo.CustomIconPath))
+            {
+                var customIcon = LoadImageFromFile(gameInfo.CustomIconPath);
+                if (customIcon != null)
+                {
+                    gameInfo.IconSource = customIcon;
+                    return;
+                }
+            }
+            
+            gameInfo.IconSource = GetIconFromExePath(gameInfo.GamePath);
+        }
+        private void ResetIcon_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is GameInfo gameInfo)
+            {
+                gameInfo.CustomIconPath = null;
+                gameInfo.IconSource = GetIconFromExePath(gameInfo.GamePath);
+                SaveSettings();
+                UpdateStatus($"Icon reset for {gameInfo.GameName}");
+            }
+        }
+
     }
     public class RelayCommand : ICommand
     {
@@ -969,6 +1063,21 @@ namespace DSXGameHelperExtended
                 {
                     gamePath = value;
                     OnPropertyChanged(nameof(GamePath));
+                    AutoSave();
+                }
+            }
+        }
+
+        private string customIconPath;
+        public string CustomIconPath
+        {
+            get => customIconPath;
+            set
+            {
+                if (customIconPath != value)
+                {
+                    customIconPath = value;
+                    OnPropertyChanged(nameof(CustomIconPath));
                     AutoSave();
                 }
             }
