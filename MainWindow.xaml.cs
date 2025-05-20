@@ -22,7 +22,7 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace DSXGameHelperExtended
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow
     {
         private ObservableCollection<GameInfo> gamePaths;
         private Timer processCheckTimer;
