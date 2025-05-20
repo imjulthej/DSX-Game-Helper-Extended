@@ -28,5 +28,9 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 
 ### Installation
 
-1. Download the latest release of the program from the [Releases](https://github.com/raritytiks/dsx-game-helper/releases) page.
-2. Extract the downloaded ZIP file to a directory of your choice.
+1. Download the latest release from the [Releases](https://github.com/raritytiks/dsx-game-helper/releases) page.
+2. Extract the ZIP file to a directory of your choice.
+
+---
+
+**NOTE:** Do not run DSX GHE as an administrator or the drag and drop function will not work.
