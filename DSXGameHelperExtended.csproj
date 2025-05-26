@@ -7,7 +7,7 @@
     <UseWPF>true</UseWPF>
     <SignAssembly>True</SignAssembly>
     <PackageIcon>gamecontroller_23912.png</PackageIcon>
-    <ApplicationIcon>controller.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\controller.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 	<AssemblyVersion>1.2.0.0</AssemblyVersion>
 	<FileVersion>1.2.0.0</FileVersion>
@@ -32,14 +32,7 @@
     <Resource Include="Assets\icon_error.ico" />
     <Resource Include="Assets\icon_idle.ico" />
     <Resource Include="Assets\icon_running.ico" />
-    <Resource Include="controller.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="F:\Downloads\gamecontroller_23912.png">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
+    <Resource Include="Assets\controller.ico" />
   </ItemGroup>
 
   <ItemGroup>

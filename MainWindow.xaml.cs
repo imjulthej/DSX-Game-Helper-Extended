@@ -77,7 +77,7 @@ namespace DSXGameHelperExtended
 
             taskbarIcon = new TaskbarIcon();
             SetTrayIcon(iconIdle);
-            taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/controller.ico"));
+            taskbarIcon.IconSource = new BitmapImage(new Uri("pack://application:,,,/Assets/controller.ico"));
             taskbarIcon.ToolTipText = "DSX Game Helper Extended";
             taskbarIcon.TrayMouseDoubleClick += TaskbarIcon_DoubleClick;
 
