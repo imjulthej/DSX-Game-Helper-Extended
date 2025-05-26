@@ -30,7 +30,6 @@
 
   <ItemGroup>
     <Resource Include="Assets\icon_error.ico" />
-    <Resource Include="Assets\icon_idle.ico" />
     <Resource Include="Assets\icon_running.ico" />
     <Resource Include="Assets\controller.ico" />
   </ItemGroup>

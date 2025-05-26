@@ -37,7 +37,7 @@ namespace DSXGameHelperExtended
 
         public string dsxExecutablePath { get; private set; }
         private TaskbarIcon taskbarIcon;
-        private readonly Uri iconIdle = new("pack://application:,,,/Assets/icon_idle.ico");
+        private readonly Uri iconIdle = new("pack://application:,,,/Assets/controller.ico");
         private readonly Uri iconRunning = new("pack://application:,,,/Assets/icon_running.ico");
         private readonly Uri iconError = new("pack://application:,,,/Assets/icon_error.ico");
 
