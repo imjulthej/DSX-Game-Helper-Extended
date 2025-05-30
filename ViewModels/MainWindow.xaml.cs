@@ -557,14 +557,14 @@ namespace DSXGameHelperExtended
                 MenuItem changeIconItem = new MenuItem
                 {
                     Header = "Change Icon",
-                    DataContext = selectedGame  // Add this line
+                    DataContext = selectedGame
                 };
                 changeIconItem.Click += ChangeIcon_Click;
 
                 MenuItem resetIconItem = new MenuItem
                 {
                     Header = "Reset Icon",
-                    DataContext = selectedGame  // Add this line
+                    DataContext = selectedGame
                 };
                 resetIconItem.Click += ResetIcon_Click;
 
@@ -1049,7 +1049,7 @@ namespace DSXGameHelperExtended
                 {
                     gameName = value;
                     OnPropertyChanged(nameof(GameName));
-                    AutoSave(); // Trigger save when changed
+                    AutoSave();
                 }
             }
         }

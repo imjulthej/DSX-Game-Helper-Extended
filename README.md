@@ -2,7 +2,7 @@
 
 A program that launches and kills [DSX](https://store.steampowered.com/app/1812620/DSX/) when running specified games so you don't have to open it manually every time. The original DSX Game Helper was created by [@raritytiks](https://github.com/raritytiks). I forked from their repository and expanded upon it with some additional features, so please support them!
 
-## Additions to OG Program
+## New Features
 * The ability to autodetect games from a specified folder
 * A dedicated settings page for the following features:
 
@@ -11,12 +11,12 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
   - Optional notifications for when DSX launches and closes, if an error occurs, or if a new update is available
     
 * Dynamic tray icon improvements
-* The ability to drag and drop exes to add them
+* Drag and drop exes to add them
 * Option to open games directly from DSX GHE (default off in the settings page)
-* The ability to edit Game Name
+* Edit Game Name
 * EXE icons next to Game Name, with the ability to change them
 * Select programs before deleting, with select all option available
-* Scrolling, search, and sorting through lists
+* Scroll, search, and sort through lists
 * Updated to .NET 8
 
 ## Getting Started
@@ -34,5 +34,5 @@ A program that launches and kills [DSX](https://store.steampowered.com/app/18126
 ---
 
 **NOTES:** 
-* Do not run DSX GHE as an administrator or the drag and drop function will not work.
-* To add Microsoft Store games to DSX GHE, you must either go to their EXE in File Explorer and drag and drop it or scan their directory folder, as traditional adding does not work due to administrator protections on Microsoft Store game EXEs.
+* Do **NOT** run DSX GHE as an administrator, otherwise the drag and drop feature will not work.
+* To add Microsoft Store games to DSX GHE, you must either drag and drop the game's EXE or scan its directory folder, as traditional adding does not work due to administrator protections on Microsoft Store game EXEs.
