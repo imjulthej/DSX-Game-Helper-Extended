@@ -8,7 +8,6 @@
                 <StackPanel Margin="10" VerticalAlignment="Top">
                     <CheckBox x:Name="chkStartWithWindows" Content="Start on Windows startup" Margin="0,5"/>
                     <CheckBox x:Name="chkStartMinimized" Content="Start minimized to tray" Margin="0,5"/>
-                    <CheckBox x:Name="chkDoubleClickLaunch" Content="Enable double-click to launch games" Margin="0,5"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,15">
                         <TextBlock VerticalAlignment="Center" Text="DSX Path:" Margin="0,0,10,0"/>
@@ -25,6 +24,15 @@
                     <CheckBox x:Name="chkNotifyStop" Content="Notify when DSX stops" Margin="0,5"/>
                     <CheckBox x:Name="chkNotifyError" Content="Notify on errors" Margin="0,5"/>
                     <CheckBox x:Name="chkNotifyUpdate" Content="Notify when updates are available" Margin="0,5"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Launching">
+                <StackPanel Margin="10" VerticalAlignment="Top">
+                    <CheckBox x:Name="chkDoubleClickLaunch" Content="Enable double-click to launch games" Margin="0,5"
+                  Checked="EnableDoubleClick_Checked" Unchecked="EnableDoubleClick_Checked"/>
+                    <CheckBox x:Name="chkSkipConfirmation" Content="Always launch without confirmation" Margin="20,5,0,5"
+                  IsEnabled="{Binding ElementName=chkDoubleClickLaunch, Path=IsChecked}"/>
                 </StackPanel>
             </TabItem>
         </TabControl>

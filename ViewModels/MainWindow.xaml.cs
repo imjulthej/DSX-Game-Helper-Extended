@@ -766,6 +766,22 @@ namespace DSXGameHelperExtended
 
             if (lvGames.SelectedItem is GameInfo selectedGame && File.Exists(selectedGame.GamePath))
             {
+                if (!appSettings.SkipLaunchConfirmation)
+                {
+                    var result = MessageBox.Show(
+                        $"Are you sure you want to launch {selectedGame.GameName}?",
+                        "Confirm Launch",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question
+                    );
+
+                    if (result != MessageBoxResult.Yes)
+                    {
+                        UpdateStatus("Launch canceled by user.");
+                        return;
+                    }
+                }
+
                 try
                 {
                     Process.Start(new ProcessStartInfo
@@ -1145,6 +1161,7 @@ namespace DSXGameHelperExtended
         public bool NotifyOnUpdate { get; set; } = true;
         public string LastNotifiedVersion { get; set; } = "";
         public bool EnableDoubleClickLaunch { get; set; } = true;
+        public bool SkipLaunchConfirmation { get; set; } = false;
     }
 
     public static class StartupHelper

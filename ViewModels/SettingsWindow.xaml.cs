@@ -15,11 +15,12 @@ namespace DSXGameHelperExtended
             chkStartMinimized.IsChecked = settings.StartMinimized;
             chkDoubleClickLaunch.IsChecked = settings.EnableDoubleClickLaunch;
             txtDSXPath.Text = settings.DSXExecutablePath;
-
             chkNotifyStart.IsChecked = settings.NotifyOnStart;
             chkNotifyStop.IsChecked = settings.NotifyOnStop;
             chkNotifyError.IsChecked = settings.NotifyOnError;
             chkNotifyUpdate.IsChecked = settings.NotifyOnUpdate;
+            chkSkipConfirmation.IsChecked = settings.SkipLaunchConfirmation;
+            chkSkipConfirmation.IsEnabled = settings.EnableDoubleClickLaunch;
         }
 
         private void BrowseDSXPath_Click(object sender, RoutedEventArgs e)
@@ -44,9 +45,10 @@ namespace DSXGameHelperExtended
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            settings.EnableDoubleClickLaunch = chkDoubleClickLaunch.IsChecked == true;
+            settings.SkipLaunchConfirmation = chkDoubleClickLaunch.IsChecked == true && chkSkipConfirmation.IsChecked == true;
             settings.StartWithWindows = chkStartWithWindows.IsChecked == true;
             settings.StartMinimized = chkStartMinimized.IsChecked == true;
-            settings.EnableDoubleClickLaunch = chkDoubleClickLaunch.IsChecked == true;
             settings.DSXExecutablePath = txtDSXPath.Text;
 
             settings.NotifyOnStart = chkNotifyStart.IsChecked == true;
@@ -66,6 +68,16 @@ namespace DSXGameHelperExtended
         {
             MainWindow main = Application.Current.MainWindow as MainWindow;
             main?.SaveSettings();
+        }
+        private void EnableDoubleClick_Checked(object sender, RoutedEventArgs e)
+        {
+            bool isDoubleClickEnabled = chkDoubleClickLaunch.IsChecked == true;
+            chkSkipConfirmation.IsEnabled = isDoubleClickEnabled;
+
+            if (!isDoubleClickEnabled)
+            {
+                chkSkipConfirmation.IsChecked = false;
+            }
         }
     }
 }
