@@ -1144,14 +1144,18 @@ namespace DSXGameHelperExtended
     {
         public Settings()
         {
-            CheckInterval = 1;  // Default to 1 second
+            CheckInterval = 1;
             HasPromptedForDSXPath = false;
             EnableDoubleClickLaunch = false;
+            NotifyOnStart = false;
+            NotifyOnStop = false;
+            NotifyOnError = false;
+            NotifyOnUpdate = false;
         }
         public string LastUsedDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         public List<GameInfo> GamePaths { get; set; } = new List<GameInfo>();
         public string DSXExecutablePath { get; set; }
-        public int CheckInterval { get; set; } = 1; // Default to 5 seconds
+        public int CheckInterval { get; set; } = 1;
         public bool HasPromptedForDSXPath { get; set; } = false;
         public bool StartMinimized { get; set; } = false;
         public bool StartWithWindows { get; set; } = false;

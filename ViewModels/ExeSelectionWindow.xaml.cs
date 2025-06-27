@@ -17,11 +17,22 @@ namespace DSXGameHelperExtended
             {
                 FileName = Path.GetFileName(path),
                 FullPath = path,
-                IsSelected = true
+                IsSelected = false
             }));
+            foreach (var item in ExeFiles)
+            {
+                item.PropertyChanged += ExeFileItem_PropertyChanged;
+            }
             lstExeFiles.ItemsSource = ExeFiles;
+            UpdateOkButtonState();
         }
-
+        private void ExeFileItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ExeFileItem.IsSelected))
+            {
+                UpdateOkButtonState();
+            }
+        }
         public string[] GetSelectedFiles()
         {
             return ExeFiles.Where(f => f.IsSelected).Select(f => f.FullPath).ToArray();
@@ -45,6 +56,7 @@ namespace DSXGameHelperExtended
             {
                 file.IsSelected = true;
             }
+            UpdateOkButtonState();
         }
 
         private void chkSelectAll_Unchecked(object sender, RoutedEventArgs e)
@@ -53,6 +65,11 @@ namespace DSXGameHelperExtended
             {
                 file.IsSelected = false;
             }
+            UpdateOkButtonState();
+        }
+        private void UpdateOkButtonState()
+        {
+            btnOK.IsEnabled = ExeFiles.Any(f => f.IsSelected);
         }
     }
 
@@ -67,8 +84,11 @@ namespace DSXGameHelperExtended
             get => _isSelected;
             set
             {
-                _isSelected = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+                }
             }
         }
 
