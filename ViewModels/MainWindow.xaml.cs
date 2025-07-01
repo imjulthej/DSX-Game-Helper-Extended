@@ -50,6 +50,10 @@ namespace DSXGameHelperExtended
         {
             InitializeComponent();
             appSettings = LoadSettings();
+            if (appSettings.StartWithWindows != StartupHelper.IsStartupEnabled())
+            {
+                StartupHelper.SetStartup(appSettings.StartWithWindows);
+            }
             if (appSettings.StartMinimized)
             {
                 WindowState = WindowState.Minimized;
@@ -1171,23 +1175,44 @@ namespace DSXGameHelperExtended
     public static class StartupHelper
     {
         private const string AppName = "DSXGameHelperExtended";
+        private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
         public static void SetStartup(bool enable)
         {
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+            try
             {
-                if (enable)
-                    key.SetValue(AppName, $"\"{System.Reflection.Assembly.GetExecutingAssembly().Location}\"");
-                else
-                    key.DeleteValue(AppName, false);
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                {
+                    if (enable)
+                    {
+                        string exePath = Process.GetCurrentProcess().MainModule.FileName;
+                        key.SetValue(AppName, $"\"{exePath}\"");
+                    }
+                    else
+                    {
+                        key.DeleteValue(AppName, false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to set startup: {ex.Message}", "Startup Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         public static bool IsStartupEnabled()
         {
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
+            try
             {
-                return key?.GetValue(AppName) != null;
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, false))
+                {
+                    return key?.GetValue(AppName) != null;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
     }

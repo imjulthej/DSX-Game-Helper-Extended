@@ -45,6 +45,13 @@ namespace DSXGameHelperExtended
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            bool newStartWithWindows = chkStartWithWindows.IsChecked == true;
+
+            if (settings.StartWithWindows != newStartWithWindows)
+            {
+                settings.StartWithWindows = newStartWithWindows;
+                StartupHelper.SetStartup(newStartWithWindows);
+            }
             settings.EnableDoubleClickLaunch = chkDoubleClickLaunch.IsChecked == true;
             settings.SkipLaunchConfirmation = chkDoubleClickLaunch.IsChecked == true && chkSkipConfirmation.IsChecked == true;
             settings.StartWithWindows = chkStartWithWindows.IsChecked == true;
