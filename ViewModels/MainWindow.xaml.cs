@@ -13,17 +13,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Windows.Threading;
 
 namespace DSXGameHelperExtended
 {
-    public partial class MainWindow
+    public partial class MainWindow : INotifyPropertyChanged
     {
+        private BackgroundWorker loadingWorker;
+        private int totalGamesToLoad;
+        private int gamesLoaded;
         private ObservableCollection<GameInfo> gamePaths;
         private Timer processCheckTimer;
         private int checkInterval;
@@ -32,7 +36,26 @@ namespace DSXGameHelperExtended
             "DSXGameHelperExtended"
         );
         private static readonly string SettingsFilePath = Path.Combine(AppDataFolderPath, "settings.json");
+        private bool _hasSelectedGames;
+        public bool HasSelectedGames
+        {
+            get => _hasSelectedGames;
+            set
+            {
+                if (_hasSelectedGames != value)
+                {
+                    _hasSelectedGames = value;
+                    OnPropertyChanged(nameof(HasSelectedGames));
+                }
+            }
+        }
 
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
         private Settings appSettings;
 
         public string dsxExecutablePath { get; private set; }
@@ -43,39 +66,155 @@ namespace DSXGameHelperExtended
 
         private void SetTrayIcon(Uri iconUri)
         {
-            taskbarIcon.IconSource = new BitmapImage(iconUri);
+            if (taskbarIcon != null)
+            {
+                taskbarIcon.IconSource = new BitmapImage(iconUri);
+            }
         }
 
         public MainWindow()
         {
+            ShowInTaskbar = false;
+            Visibility = Visibility.Hidden;
             InitializeComponent();
+            DataContext = this;
+            gamePaths = new ObservableCollection<GameInfo>();
+            lvGames.ItemsSource = gamePaths;
+            InitializeLoadingWorker();
             appSettings = LoadSettings();
+
             if (appSettings.StartWithWindows != StartupHelper.IsStartupEnabled())
             {
                 StartupHelper.SetStartup(appSettings.StartWithWindows);
             }
+
             if (appSettings.StartMinimized)
             {
                 WindowState = WindowState.Minimized;
                 Hide();
             }
+
             if (appSettings.GamePaths != null)
             {
-                foreach (var game in appSettings.GamePaths)
+                var validGames = appSettings.GamePaths
+                    .Where(g => g != null && !string.IsNullOrWhiteSpace(g.GamePath))
+                    .ToList();
+
+                foreach (var game in validGames)
                 {
-                    LoadGameIcon(game);
+                    try
+                    {
+                        if (!gamePaths.Any(g =>
+                            string.Equals(g.GamePath, game.GamePath, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            LoadGameIcon(game);
+                            game.PropertyChanged += GameInfo_PropertyChanged;
+                            gamePaths.Add(game);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error loading game {game.GamePath}: {ex.Message}");
+                    }
                 }
-                lvGames.ItemsSource = appSettings.GamePaths;
             }
-            gamePaths = new ObservableCollection<GameInfo>(appSettings.GamePaths);
-            lvGames.ItemsSource = gamePaths;
+            chkSelectAll.IsChecked = false;
+
             InitializeCollectionView();
-            foreach (var game in gamePaths)
+            InitializeTimer();
+            UpdateStatus("Ready. No game running.");
+        }
+        private void InitializeLoadingWorker()
+        {
+            loadingWorker = new BackgroundWorker
             {
-                game.PropertyChanged += GameInfo_PropertyChanged;
+                WorkerReportsProgress = true,
+                WorkerSupportsCancellation = false
+            };
+
+            loadingWorker.DoWork += LoadingWorker_DoWork;
+            loadingWorker.ProgressChanged += LoadingWorker_ProgressChanged;
+            loadingWorker.RunWorkerCompleted += LoadingWorker_RunWorkerCompleted;
+        }
+
+        public void LoadAsync()
+        {
+            loadingWorker.RunWorkerAsync();
+        }
+
+        private void LoadingWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            loadingWorker.ReportProgress(0, "Loading settings...");
+
+            if (appSettings.StartWithWindows != StartupHelper.IsStartupEnabled())
+            {
+                StartupHelper.SetStartup(appSettings.StartWithWindows);
             }
 
-            DataContext = appSettings;
+            loadingWorker.ReportProgress(10, "Initializing game list...");
+
+            totalGamesToLoad = appSettings.GamePaths?.Count ?? 0;
+            gamesLoaded = 0;
+
+            if (appSettings.GamePaths != null)
+            {
+                int batchSize = 10;
+                for (int i = 0; i < appSettings.GamePaths.Count; i += batchSize)
+                {
+                    var batch = appSettings.GamePaths.Skip(i).Take(batchSize).ToList();
+                    Dispatcher.Invoke(() => LoadGameBatch(batch));
+
+                    gamesLoaded += batch.Count;
+                    int progress = 10 + (int)((double)gamesLoaded / totalGamesToLoad * 80);
+                    loadingWorker.ReportProgress(progress, $"Loading games... ({gamesLoaded}/{totalGamesToLoad})");
+
+                    Thread.Sleep(50);
+                }
+            }
+
+            loadingWorker.ReportProgress(95, "Finalizing...");
+        }
+
+        private void LoadGameBatch(List<GameInfo> batch)
+        {
+            foreach (var game in batch)
+            {
+                var existingGame = gamePaths.FirstOrDefault(g =>
+                    g.GamePath.Equals(game.GamePath, StringComparison.OrdinalIgnoreCase));
+
+                if (existingGame == null)
+                {
+                    LoadGameIcon(game);
+                    game.PropertyChanged += GameInfo_PropertyChanged;
+                    Dispatcher.Invoke(() => gamePaths.Add(game));
+                }
+                else
+                {
+                    existingGame.GameName = game.GameName;
+                    existingGame.CustomIconPath = game.CustomIconPath;
+                    if (existingGame.IconSource == null)
+                    {
+                        LoadGameIcon(existingGame);
+                    }
+                }
+            }
+        }
+
+        private void LoadingWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            var splash = (Application.Current as App)?.splashScreen;
+            if (splash != null)
+            {
+                splash.UpdateProgress(e.ProgressPercentage, e.UserState as string);
+            }
+        }
+
+        private void LoadingWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            this.ShowInTaskbar = true;
+            this.Visibility = Visibility.Visible;
+            InitializeCollectionView();
+            UpdateSelectedGamesStatus();
             InitializeTimer();
             UpdateStatus("Ready. No game running.");
 
@@ -92,23 +231,18 @@ namespace DSXGameHelperExtended
             exitMenuItem.Click += (sender, e) => Close();
             contextMenu.Items.Add(openMenuItem);
             contextMenu.Items.Add(exitMenuItem);
-
             taskbarIcon.ContextMenu = contextMenu;
-            taskbarIcon.TrayBalloonTipClicked += (s, e) =>
+
+            if (!appSettings.StartMinimized)
             {
-                if (!string.IsNullOrEmpty(pendingNotificationUrl))
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = pendingNotificationUrl,
-                        UseShellExecute = true
-                    });
-                    pendingNotificationUrl = null;
-                }
-            };
-
+                this.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                WindowState = WindowState.Minimized;
+                Hide();
+            }
         }
-
         private void TaskbarIcon_DoubleClick(object sender, RoutedEventArgs e)
         {
             OpenMainWindow(sender);
@@ -121,7 +255,6 @@ namespace DSXGameHelperExtended
             Activate();
         }
 
-
         protected override void OnStateChanged(EventArgs e)
         {
             base.OnStateChanged(e);
@@ -131,7 +264,6 @@ namespace DSXGameHelperExtended
                 Hide();
             }
         }
-
 
         private void InitializeTimer()
         {
@@ -150,49 +282,80 @@ namespace DSXGameHelperExtended
                 if (!Directory.Exists(AppDataFolderPath))
                 {
                     Directory.CreateDirectory(AppDataFolderPath);
+                    return new Settings();
                 }
 
-                if (File.Exists(SettingsFilePath))
+                if (!File.Exists(SettingsFilePath))
                 {
-                    string settingsJson = File.ReadAllText(SettingsFilePath);
-                    Settings settings = JsonSerializer.Deserialize<Settings>(settingsJson);
+                    return new Settings();
+                }
 
-                    dsxExecutablePath = settings?.DSXExecutablePath;
+                string settingsJson = File.ReadAllText(SettingsFilePath);
+                if (string.IsNullOrWhiteSpace(settingsJson))
+                {
+                    return new Settings();
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip,
+                    Converters = { new GameInfoConverter() }
+                };
+
+                var settings = JsonSerializer.Deserialize<Settings>(settingsJson, options) ?? new Settings();
+
+                if (settings.GamePaths != null)
+                {
                     foreach (var game in settings.GamePaths)
                     {
-                        game.IconSource = GetIconFromExePath(game.GamePath);
-                        game.PropertyChanged += GameInfo_PropertyChanged;
+                        game.IsSelected = false;
                     }
-                    return settings ?? new Settings();
+
+                    settings.GamePaths = settings.GamePaths
+                        .Where(g => g != null && !string.IsNullOrWhiteSpace(g.GamePath))
+                        .ToList();
                 }
+
+                return settings;
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Error loading settings: {ex.Message}");
+                return new Settings();
             }
-
-            return new Settings();
         }
 
         public void SaveSettings()
         {
             try
             {
-                if (!Directory.Exists(AppDataFolderPath))
-                {
-                    Directory.CreateDirectory(AppDataFolderPath);
-                }
+                appSettings.GamePaths = gamePaths
+                    .Where(g => g != null && !string.IsNullOrWhiteSpace(g.GamePath))
+                    .ToList();
 
-                appSettings.GamePaths = gamePaths.ToList();
-                string settingsJson = JsonSerializer.Serialize(appSettings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SettingsFilePath, settingsJson);
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                    Converters = { new GameInfoConverter() }
+                };
+
+                string settingsJson = JsonSerializer.Serialize(appSettings, options);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(SettingsFilePath));
+
+                string tempPath = Path.Combine(AppDataFolderPath, "temp_settings.json");
+                File.WriteAllText(tempPath, settingsJson);
+
+                File.Delete(SettingsFilePath);
+                File.Move(tempPath, SettingsFilePath);
             }
             catch (Exception ex)
             {
                 UpdateStatus($"Error saving settings: {ex.Message}");
             }
         }
-
         private void UpdateStatus(string message, bool isLeft = true)
         {
             Dispatcher.Invoke(() =>
@@ -203,7 +366,10 @@ namespace DSXGameHelperExtended
                     txtStatusRight.Text = message;
             });
         }
-
+        public void UpdateSelectedGamesStatus()
+        {
+            HasSelectedGames = gamePaths?.Any(g => g.IsSelected) ?? false;
+        }
         private void btnAddGame_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog
@@ -219,7 +385,8 @@ namespace DSXGameHelperExtended
                 var gameInfo = new GameInfo
                 {
                     GamePath = openFileDialog.FileName,
-                    GameName = Path.GetFileNameWithoutExtension(openFileDialog.FileName)
+                    GameName = Path.GetFileNameWithoutExtension(openFileDialog.FileName),
+                    IsSelected = false,
                 };
 
                 gameInfo.IconSource = GetIconFromExePath(gameInfo.GamePath);
@@ -231,32 +398,21 @@ namespace DSXGameHelperExtended
             }
         }
 
-        private void btnRemoveGame_Click(object sender, RoutedEventArgs e)
-        {
-            if (lvGames.SelectedItem is GameInfo selectedGame)
-            {
-                gamePaths.Remove(selectedGame);
-                SaveSettings();
-                UpdateStatus($"Game removed: {selectedGame.GameName}");
-                UpdateSelectedCountStatus();
-            }
-            else
-            {
-                MessageBox.Show("Please select a game to remove.", "No Game Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
         private void btnRemoveSelected_Click(object sender, RoutedEventArgs e)
         {
             var selectedGames = gamePaths.Where(g => g.IsSelected).ToList();
 
-            if (selectedGames.Count == 0)
+            string confirmationMessage;
+            if (selectedGames.Count == 1)
             {
-                MessageBox.Show("No games selected to remove.", "Remove Selected", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                confirmationMessage = $"Are you sure you want to remove {selectedGames[0].GameName}?";
+            }
+            else
+            {
+                confirmationMessage = $"Are you sure you want to remove {selectedGames.Count} games?";
             }
 
-            if (MessageBox.Show($"Are you sure you want to remove {selectedGames.Count} game(s)?", "Confirm Remove", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            if (MessageBox.Show(confirmationMessage, "Confirm Remove", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 foreach (var game in selectedGames)
                 {
@@ -264,10 +420,18 @@ namespace DSXGameHelperExtended
                 }
 
                 SaveSettings();
-                UpdateStatus($"{selectedGames.Count} game(s) removed.");
+                UpdateSelectedGamesStatus();
+
+                if (selectedGames.Count == 1)
+                {
+                    UpdateStatus($"Game removed: {selectedGames[0].GameName}");
+                }
+                else
+                {
+                    UpdateStatus($"{selectedGames.Count} games removed.");
+                }
 
                 chkSelectAll.IsChecked = false;
-                UpdateSelectedCountStatus();
             }
         }
 
@@ -277,7 +441,7 @@ namespace DSXGameHelperExtended
             {
                 game.IsSelected = true;
             }
-            UpdateSelectedCountStatus();
+            UpdateSelectedGamesStatus();
         }
 
         private void chkSelectAll_Unchecked(object sender, RoutedEventArgs e)
@@ -286,14 +450,7 @@ namespace DSXGameHelperExtended
             {
                 game.IsSelected = false;
             }
-            UpdateSelectedCountStatus();
-        }
-
-        public void UpdateSelectedCountStatus()
-        {
-            int selectedCount = gamePaths.Count(g => g.IsSelected);
-            string msg = selectedCount == 0 ? "No game selected." : $"{selectedCount} game(s) selected.";
-            UpdateStatus(msg, isLeft: false);
+            UpdateSelectedGamesStatus();
         }
 
         private void CheckRunningGames(object state)
@@ -463,7 +620,8 @@ namespace DSXGameHelperExtended
                         {
                             GamePath = exePath,
                             GameName = gameName,
-                            IconSource = GetIconFromExePath(exePath)
+                            IconSource = GetIconFromExePath(exePath),
+                            IsSelected = false
                         };
 
                         gameInfo.PropertyChanged += GameInfo_PropertyChanged;
@@ -524,7 +682,7 @@ namespace DSXGameHelperExtended
             return filteredList.ToArray();
         }
 
-        private ImageSource GetIconFromExePath(string exePath)
+        public static ImageSource GetIconFromExePath(string exePath)
         {
             try
             {
@@ -547,6 +705,10 @@ namespace DSXGameHelperExtended
 
         private void GameInfo_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(GameInfo.IsSelected))
+            {
+                UpdateSelectedGamesStatus();
+            }
             SaveSettings();
         }
         private void lvGames_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -879,7 +1041,8 @@ namespace DSXGameHelperExtended
                         {
                             GamePath = path,
                             GameName = name,
-                            IconSource = GetIconFromExePath(path)
+                            IconSource = GetIconFromExePath(path),
+                            IsSelected = false
                         };
 
                         gameInfo.PropertyChanged += GameInfo_PropertyChanged;
@@ -963,7 +1126,7 @@ namespace DSXGameHelperExtended
             view.SortDescriptions.Add(new SortDescription("GameName",
                 isAscending ? ListSortDirection.Ascending : ListSortDirection.Descending));
         }
-        private ImageSource LoadImageFromFile(string filePath)
+        public static ImageSource LoadImageFromFile(string filePath)
         {
             try
             {
@@ -1031,7 +1194,54 @@ namespace DSXGameHelperExtended
                 UpdateStatus($"Icon reset for {gameInfo.GameName}");
             }
         }
+        private void PrioritizeVisibleItems()
+        {
+            if (lvGames.ItemContainerGenerator.Status != GeneratorStatus.ContainersGenerated)
+            {
+                Dispatcher.BeginInvoke(new Action(PrioritizeVisibleItems), DispatcherPriority.Background);
+                return;
+            }
 
+            var scrollViewer = FindVisualChild<ScrollViewer>(lvGames);
+            if (scrollViewer == null) return;
+
+            double viewportHeight = scrollViewer.ViewportHeight;
+            double verticalOffset = scrollViewer.VerticalOffset;
+
+            int firstVisibleIndex = (int)(verticalOffset);
+            int lastVisibleIndex = (int)(verticalOffset + viewportHeight);
+
+            for (int i = firstVisibleIndex; i <= lastVisibleIndex && i < gamePaths.Count; i++)
+            {
+                var game = gamePaths[i];
+                if (game.IconSource == null)
+                {
+                    game.LoadIcon();
+                }
+            }
+        }
+
+        private static T FindVisualChild<T>(DependencyObject obj) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(obj, i);
+                if (child != null && child is T)
+                    return (T)child;
+                else
+                {
+                    T childOfChild = FindVisualChild<T>(child);
+                    if (childOfChild != null)
+                        return childOfChild;
+                }
+            }
+            return null;
+        }
+        protected override void OnClosed(EventArgs e)
+        {
+            taskbarIcon?.Dispose();
+            base.OnClosed(e);
+        }
     }
     public class RelayCommand : ICommand
     {
@@ -1053,50 +1263,88 @@ namespace DSXGameHelperExtended
             _execute();
         }
     }
+    public class GameInfoConverter : JsonConverter<GameInfo>
+    {
+        public override GameInfo Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using (JsonDocument doc = JsonDocument.ParseValue(ref reader))
+            {
+                var root = doc.RootElement;
+                var game = new GameInfo();
 
+                if (root.TryGetProperty("gameName", out var name))
+                    game.GameName = name.GetString() ?? string.Empty;
+
+                if (root.TryGetProperty("gamePath", out var path))
+                    game.GamePath = path.GetString() ?? string.Empty;
+
+                if (root.TryGetProperty("customIconPath", out var iconPath))
+                    game.CustomIconPath = iconPath.GetString() ?? string.Empty;
+
+                if (root.TryGetProperty("isSelected", out var selected))
+                    game.IsSelected = selected.GetBoolean();
+
+                return game;
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, GameInfo value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("gameName", value.GameName);
+            writer.WriteString("gamePath", value.GamePath);
+            writer.WriteString("customIconPath", value.CustomIconPath);
+            writer.WriteBoolean("isSelected", value.IsSelected);
+            writer.WriteEndObject();
+        }
+    }
     public class GameInfo : INotifyPropertyChanged
     {
-        private string gameName;
-        private string gamePath;
-        private ImageSource iconSource;
+        private string _gameName = string.Empty;
+        private string _gamePath = string.Empty;
+        private string _customIconPath = string.Empty;
+        private bool _isSelected = false;
+        private ImageSource _iconSource;
+        private bool _isIconLoaded;
 
+        [JsonPropertyName("gameName")]
         public string GameName
         {
-            get => gameName;
+            get => _gameName;
             set
             {
-                if (gameName != value)
+                if (_gameName != value)
                 {
-                    gameName = value;
+                    _gameName = value ?? string.Empty;
                     OnPropertyChanged(nameof(GameName));
                     AutoSave();
                 }
             }
         }
 
+        [JsonPropertyName("gamePath")]
         public string GamePath
         {
-            get => gamePath;
+            get => _gamePath;
             set
             {
-                if (gamePath != value)
+                if (_gamePath != value)
                 {
-                    gamePath = value;
+                    _gamePath = value ?? string.Empty;
                     OnPropertyChanged(nameof(GamePath));
                     AutoSave();
                 }
             }
         }
 
-        private string customIconPath;
         public string CustomIconPath
         {
-            get => customIconPath;
+            get => _customIconPath;
             set
             {
-                if (customIconPath != value)
+                if (_customIconPath != value)
                 {
-                    customIconPath = value;
+                    _customIconPath = value;
                     OnPropertyChanged(nameof(CustomIconPath));
                     AutoSave();
                 }
@@ -1106,28 +1354,39 @@ namespace DSXGameHelperExtended
         [JsonIgnore]
         public ImageSource IconSource
         {
-            get => iconSource;
+            get
+            {
+                if (!_isIconLoaded && !string.IsNullOrEmpty(GamePath))
+                {
+                    _isIconLoaded = true;
+                    Task.Run(() => LoadIcon());
+                }
+                return _iconSource;
+            }
             set
             {
-                if (iconSource != value)
+                if (_iconSource != value)
                 {
-                    iconSource = value;
+                    _iconSource = value;
                     OnPropertyChanged(nameof(IconSource));
                 }
             }
         }
-
-        private bool isSelected;
+        [JsonIgnore]
         public bool IsSelected
         {
-            get => isSelected;
+            get => _isSelected;
             set
             {
-                if (isSelected != value)
+                if (_isSelected != value)
                 {
-                    isSelected = value;
+                    _isSelected = value;
                     OnPropertyChanged(nameof(IsSelected));
-                    (Application.Current.MainWindow as MainWindow)?.UpdateSelectedCountStatus();
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var mainWindow = Application.Current.MainWindow as MainWindow;
+                        mainWindow?.UpdateSelectedGamesStatus();
+                    });
                 }
             }
         }
@@ -1141,6 +1400,47 @@ namespace DSXGameHelperExtended
 
         private void AutoSave()
         {
+        
+        }
+
+        public void LoadIcon()
+        {
+            if (_isIconLoaded) return;
+
+            _isIconLoaded = true;
+            Task.Run(() =>
+            {
+                if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
+                {
+                    var customIcon = MainWindow.LoadImageFromFile(CustomIconPath);
+                    if (customIcon != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() => IconSource = customIcon);
+                        return;
+                    }
+                }
+
+                var icon = MainWindow.GetIconFromExePath(GamePath);
+                Application.Current.Dispatcher.Invoke(() => IconSource = icon);
+            });
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is GameInfo other &&
+                   string.Equals(GamePath, other.GamePath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public override int GetHashCode()
+        {
+            return StringComparer.OrdinalIgnoreCase.GetHashCode(GamePath);
+        }
+        [JsonConstructor]
+        public GameInfo()
+        {
+            _gameName = string.Empty;
+            _gamePath = string.Empty;
+            _customIconPath = string.Empty;
         }
     }
 
