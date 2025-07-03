@@ -1,4 +1,10 @@
-﻿using System.Windows;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace DSXGameHelperExtended
 {
@@ -21,6 +27,45 @@ namespace DSXGameHelperExtended
             chkNotifyUpdate.IsChecked = settings.NotifyOnUpdate;
             chkSkipConfirmation.IsChecked = settings.SkipLaunchConfirmation;
             chkSkipConfirmation.IsEnabled = settings.EnableDoubleClickLaunch;
+
+            switch (settings.ThemeMode)
+            {
+                case "Light":
+                    radioLight.IsChecked = true;
+                    break;
+                case "Dark":
+                    radioDark.IsChecked = true;
+                    break;
+                default:
+                    radioSystem.IsChecked = true;
+                    break;
+            }
+
+            radioLight.Checked += ThemeRadio_Checked;
+            radioDark.Checked += ThemeRadio_Checked;
+            radioSystem.Checked += ThemeRadio_Checked;
+        }
+
+        private void ThemeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (radioLight.IsChecked == true)
+                settings.ThemeMode = "Light";
+            else if (radioDark.IsChecked == true)
+                settings.ThemeMode = "Dark";
+            else
+                settings.ThemeMode = "System";
+
+            ThemeManager.ApplyTheme(settings.ThemeMode);
+
+            MainWindow main = Application.Current.MainWindow as MainWindow;
+            if (main != null)
+            {
+                main.SaveSettings();
+            }
+            else
+            {
+                SaveSettingsToFile(settings);
+            }
         }
 
         private void BrowseDSXPath_Click(object sender, RoutedEventArgs e)
@@ -38,6 +83,7 @@ namespace DSXGameHelperExtended
                 Save();
             }
         }
+
         private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
         {
             await (Application.Current.MainWindow as MainWindow)?.CheckForUpdatesAsync();
@@ -63,10 +109,18 @@ namespace DSXGameHelperExtended
             settings.NotifyOnError = chkNotifyError.IsChecked == true;
             settings.NotifyOnUpdate = chkNotifyUpdate.IsChecked == true;
 
+            if (radioLight.IsChecked == true)
+                settings.ThemeMode = "Light";
+            else if (radioDark.IsChecked == true)
+                settings.ThemeMode = "Dark";
+            else
+                settings.ThemeMode = "System";
+
             StartupHelper.SetStartup(settings.StartWithWindows);
 
             MainWindow main = Application.Current.MainWindow as MainWindow;
             main?.SaveSettings();
+            ThemeManager.ApplyTheme(settings.ThemeMode);
 
             base.OnClosing(e);
         }
@@ -76,6 +130,7 @@ namespace DSXGameHelperExtended
             MainWindow main = Application.Current.MainWindow as MainWindow;
             main?.SaveSettings();
         }
+
         private void EnableDoubleClick_Checked(object sender, RoutedEventArgs e)
         {
             bool isDoubleClickEnabled = chkDoubleClickLaunch.IsChecked == true;
@@ -84,6 +139,32 @@ namespace DSXGameHelperExtended
             if (!isDoubleClickEnabled)
             {
                 chkSkipConfirmation.IsChecked = false;
+            }
+        }
+
+        private void SaveSettingsToFile(Settings settings)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                    Converters = { new GameInfoConverter() }
+                };
+
+                string settingsJson = JsonSerializer.Serialize(settings, options);
+                string appDataPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "DSXGameHelperExtended");
+                string settingsPath = Path.Combine(appDataPath, "settings.json");
+
+                Directory.CreateDirectory(appDataPath);
+                File.WriteAllText(settingsPath, settingsJson);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving settings: {ex.Message}");
             }
         }
     }

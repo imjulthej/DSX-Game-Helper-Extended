@@ -8,7 +8,9 @@
         DragOver="Window_DragOver"
         PreviewDragLeave="Window_PreviewDragLeave"
         ShowInTaskbar="False"
-        Icon="/Assets/controller.ico">
+        Icon="/Assets/controller.ico"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}">
     <Window.Resources>
         <Storyboard x:Key="FadeInOverlay">
             <DoubleAnimation Storyboard.TargetName="dropOverlay"
@@ -34,15 +36,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style TargetType="Button" x:Key="RemoveSelectedButtonStyle">
-            <Setter Property="Background" Value="#FFDDDDDD"/>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Foreground" Value="Gray"/>
-                    <Setter Property="Background" Value="#FFEEEEEE"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </Window.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -54,7 +47,7 @@
 
         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
             <Button x:Name="btnAddGame" Content="Add Game" Width="100" Margin="0,0,10,0" Click="btnAddGame_Click"/>
-            <Button x:Name="btnRemoveSelected" Content="Remove Selected" Width="120" Margin="0,0,0,0" Click="btnRemoveSelected_Click" IsEnabled="{Binding HasSelectedGames}" Style="{StaticResource RemoveSelectedButtonStyle}"/>
+            <Button x:Name="btnRemoveSelected" Content="Remove Selected" Width="120" Margin="0,0,0,0" Click="btnRemoveSelected_Click" IsEnabled="{Binding HasSelectedGames}" Style="{DynamicResource RemoveSelectedButtonStyle}"/>
             <Button x:Name="btnScanFolder" Content="Scan Folder" Width="100" Margin="10,0,0,0" Click="btnScanFolder_Click"/>
             <CheckBox x:Name="chkSelectAll" Content="Select All" Margin="10,0,0,0" Checked="chkSelectAll_Checked" Unchecked="chkSelectAll_Unchecked" VerticalAlignment="Center"/>
             <Button x:Name="btnSettings" Content="Settings" Width="100" Click="btnSettings_Click" Margin="250,0,0,0"/>

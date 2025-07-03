@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.IO;
+using System.Text.Json;
 
 namespace DSXGameHelperExtended
 {
@@ -25,6 +27,25 @@ namespace DSXGameHelperExtended
                 Current.Shutdown();
                 return;
             }
+
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DSXGameHelperExtended");
+            string settingsPath = Path.Combine(appDataPath, "settings.json");
+            string themeMode = "System";
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(settingsPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ThemeMode", out var themeProp))
+                    {
+                        themeMode = themeProp.GetString() ?? "System";
+                    }
+                }
+                catch { }
+            }
+
+            ThemeManager.ApplyTheme(themeMode);
 
             var splash = new SplashScreen();
             splash.Show();

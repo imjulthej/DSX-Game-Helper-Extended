@@ -304,7 +304,10 @@ namespace DSXGameHelperExtended
                 };
 
                 var settings = JsonSerializer.Deserialize<Settings>(settingsJson, options) ?? new Settings();
-
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ThemeManager.ApplyTheme(settings.ThemeMode);
+                }));
                 if (settings.GamePaths != null)
                 {
                     foreach (var game in settings.GamePaths)
@@ -1455,6 +1458,7 @@ namespace DSXGameHelperExtended
             NotifyOnStop = false;
             NotifyOnError = false;
             NotifyOnUpdate = false;
+            ThemeMode = "System";
         }
         public string LastUsedDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         public List<GameInfo> GamePaths { get; set; } = new List<GameInfo>();
@@ -1470,6 +1474,8 @@ namespace DSXGameHelperExtended
         public string LastNotifiedVersion { get; set; } = "";
         public bool EnableDoubleClickLaunch { get; set; } = true;
         public bool SkipLaunchConfirmation { get; set; } = false;
+        [JsonPropertyName("themeMode")]
+        public string ThemeMode { get; set; } = "System";
     }
 
     public static class StartupHelper
